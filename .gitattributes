@@ -1,0 +1,2 @@
+*.zip filter=lfs diff=lfs merge=lfs -text
+oolale_mobile.zip filter=lfs diff=lfs merge=lfs -text
