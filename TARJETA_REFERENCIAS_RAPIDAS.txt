@@ -1,0 +1,261 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                    📚 TARJETA DE REFERENCIAS RÁPIDAS                         ║
+║                                                                              ║
+║        Guarda esto como favorito - ¡Toda la navegación en una página!       ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+🎯 BÚSQUEDA RÁPIDA - ¿QUÉ NECESITO?
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Si necesitas...              │  Ve a...                                     │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│  Entender qué recibiste      │ 01_INICIO_RAPIDO.../RESUMEN_VISUAL_FINAL.txt │
+│  Próximos pasos              │ 01_INICIO_RAPIDO.../CONCLUSION_Y_PROXIMOS... │
+│  Mi rol específico           │ 01_INICIO_RAPIDO.../INDICE_MAESTRO_SESION.md │
+│  Código Flutter listo        │ 03_CODIGO_FLUTTER_LISTO/                     │
+│  Código Backend listo        │ 04_CODIGO_BACKEND_LISTO/                     │
+│  Cómo integrar todo          │ 05_INTEGRACION_PASO_A_PASO/QUICK_START...   │
+│  Dónde va cada archivo       │ 05_INTEGRACION_PASO_A_PASO/COPY_PASTE...    │
+│  Plan 8 semanas              │ 02_PLANIFICACION_ROADMAP/PLAN_IMPLEMENT...  │
+│  KPIs y riesgos              │ 02_PLANIFICACION_ROADMAP/PROJECT_STATUS.md   │
+│  SQL y queries               │ 06_BASE_DATOS_SQL/SCRIPT_BASE_DATOS...      │
+│  Pagos (Mercado Pago)        │ 05_INTEGRACION_PASO_A_PASO/INTEGRACION...   │
+│  Documentación general       │ 07_DOCUMENTACION_GENERAL/                    │
+│  Archivos anteriores         │ 08_ARCHIVOS_ANTERIORES/                      │
+└──────────────────────────────┴──────────────────────────────────────────────┘
+
+
+👥 POR ROL - QUÉ LEER
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  PROJECT MANAGER                                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  Orden  │  Archivo                           │ Tiempo │ Qué lees            │
+├─────────┼────────────────────────────────────┼────────┼────────────────────┤
+│  1️⃣   │ RESUMEN_VISUAL_FINAL.txt            │ 5 min  │ Overview            │
+│  2️⃣   │ CONCLUSION_Y_PROXIMOS_PASOS.md      │ 10 min │ Plan inmediato      │
+│  3️⃣   │ PLAN_IMPLEMENTACION_MEJORAS.md      │ 30 min │ 8 semanas           │
+│  4️⃣   │ PROJECT_STATUS.md                   │ 15 min │ KPIs + riesgos      │
+│        │                                    │ Semanal│ Monitor progreso    │
+└─────────┴────────────────────────────────────┴────────┴────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  BACKEND DEVELOPER                                                           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  Orden  │  Archivo                           │ Tiempo │ Qué haces           │
+├─────────┼────────────────────────────────────┼────────┼────────────────────┤
+│  1️⃣   │ QUICK_START_30_MIN.md               │ 20 min │ Lee guía            │
+│  2️⃣   │ ENDPOINTS_FASE_1_2.js               │ 5 min  │ Copia (copy-paste)  │
+│  3️⃣   │ GUIA_INTEGRACION_BACKEND_BD.md      │ 30 min │ Integra backend     │
+│  4️⃣   │ INTEGRACION_MERCADO_PAGO.md         │ 60 min │ Setup pagos         │
+│  5️⃣   │ test-api-completo.js                │ -      │ Ejecuta tests       │
+└─────────┴────────────────────────────────────┴────────┴────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  MOBILE DEVELOPER (FLUTTER)                                                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  Orden  │  Archivo                           │ Tiempo │ Qué haces           │
+├─────────┼────────────────────────────────────┼────────┼────────────────────┤
+│  1️⃣   │ QUICK_START_30_MIN.md               │ 20 min │ Lee guía            │
+│  2️⃣   │ portfolio_screen.dart               │ 5 min  │ Copia código        │
+│  3️⃣   │ ratings_screen.dart                 │ 5 min  │ Copia código        │
+│  4️⃣   │ upload_media_screen.dart            │ 5 min  │ Copia código        │
+│  5️⃣   │ COPY_PASTE_CHECKLIST.md             │ 10 min │ Dónde va cada uno   │
+│  6️⃣   │ GUIA_INTEGRACION_BACKEND_BD.md      │ 30 min │ Conecta backend     │
+└─────────┴────────────────────────────────────┴────────┴────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  QA / TESTING                                                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  Orden  │  Archivo                           │ Tiempo │ Qué haces           │
+├─────────┼────────────────────────────────────┼────────┼────────────────────┤
+│  1️⃣   │ PROJECT_STATUS.md                   │ 15 min │ Lee KPIs            │
+│  2️⃣   │ CONFIRMACION_ACTUALIZACION.md       │ 20 min │ Checklist testing   │
+│  3️⃣   │ test-api-completo.js                │ -      │ Ejecuta tests       │
+│  4️⃣   │ PLAN_IMPLEMENTACION_MEJORAS.md      │ 20 min │ Casos de prueba     │
+└─────────┴────────────────────────────────────┴────────┴────────────────────┘
+
+
+📱 FLUJO DE INTEGRACIÓN (7 PASOS)
+
+Step 1: LECTURA INICIAL (30 min)
+  └─ Todos leen: 01_INICIO_RAPIDO_LECTURA_INMEDIATA/RESUMEN_VISUAL_FINAL.txt
+
+Step 2: IDENTIFICAR ROL (5 min)
+  └─ Lee: INDICE_MAESTRO_SESION.md (encuentra tu rol)
+
+Step 3: SETUP INICIAL (30 min)
+  ├─ Backend: Lee QUICK_START_30_MIN.md
+  ├─ Mobile: Lee QUICK_START_30_MIN.md
+  └─ Todos: Install dependencies
+
+Step 4: COPIAR CÓDIGO (15 min)
+  ├─ Backend: Copia ENDPOINTS_FASE_1_2.js a tu proyecto
+  └─ Mobile: Copia 3 archivos .dart a lib/screens/
+
+Step 5: INTEGRAR (60 min)
+  ├─ Backend: Integra endpoints en app.js
+  ├─ Mobile: Conecta endpoints en Flutter
+  └─ Todos: Sigue COPY_PASTE_CHECKLIST.md
+
+Step 6: COMPILAR Y TESTEAR (30 min)
+  ├─ Backend: npm test + test-api-completo.js
+  ├─ Mobile: flutter run (device real)
+  └─ QA: Testea endpoints y UI
+
+Step 7: VALIDAR (15 min)
+  ├─ Portfolio upload 100% funcional
+  ├─ Ratings guardando en BD
+  ├─ No crashes críticos
+  └─ Listo para próxima feature
+
+
+⏱️ TIEMPOS POR ROL
+
+Project Manager:        2-3 horas (lectura + planning)
+Backend Developer:      2-3 horas (integración semana 1)
+Mobile Developer:       2-3 horas (integración semana 1)
+QA Tester:             1-2 horas (setup testing)
+Architect:             2-3 horas (review + validation)
+
+
+📊 CARPETAS - RÁPIDA REFERENCIA
+
+Carpeta                              Archivos    Para                 Urgencia
+────────────────────────────────────────────────────────────────────────────────
+01_INICIO_RAPIDO...                     6       Todos empiezan       ⚠️ AHORA
+02_PLANIFICACION_ROADMAP                4       Plan + monitoring    ⚠️ AHORA
+03_CODIGO_FLUTTER_LISTO                 3       Mobile devs          🔴 URGENTE
+04_CODIGO_BACKEND_LISTO                 2       Backend devs         🔴 URGENTE
+05_INTEGRACION_PASO_A_PASO              4       Guías + pasos       ⚠️ AHORA
+06_BASE_DATOS_SQL                       3       BD + queries         🟡 PRONTO
+07_DOCUMENTACION_GENERAL                8       Referencia          🟢 DESPUÉS
+08_ARCHIVOS_ANTERIORES                 13       Histórico           🟢 DESPUÉS
+
+
+✅ CHECKLIST DE HOY
+
+- [ ] Leí RESUMEN_VISUAL_FINAL.txt
+- [ ] Leí CONCLUSION_Y_PROXIMOS_PASOS.md
+- [ ] Identifiqué mi rol
+- [ ] Encontré mis archivos principales
+- [ ] Sé qué leer primero
+- [ ] Sé cómo integrar código
+- [ ] Entiendo el timeline
+- [ ] Preguntas claras → Preguntar en Sesión 2
+
+
+🚀 ESTA SEMANA
+
+Lunes:       Lectura inicial (30 min)
+Martes-Mié:  Setup + integración básica (2-3 horas)
+Jueves-Vie:  Compilar + testing (2-3 horas)
+Fin semana:  Validación y fixes
+
+
+🎯 OBJETIVO SEMANA 1
+
+✅ Portfolio upload funcionando
+✅ Ratings guardando en BD
+✅ Código compilando sin errores
+✅ No crashes críticos
+✅ Tests básicos pasando
+
+
+📞 REFERENCIAS EXTERNAS
+
+Documentación complementaria:
+- Flutter docs: flutter.dev
+- Node.js/Express: expressjs.com
+- Supabase: supabase.com/docs
+- Mercado Pago: developers.mercadopago.com
+
+
+🆘 SI ALGO NO FUNCIONA
+
+1. Revisa: COPY_PASTE_CHECKLIST.md (paso a paso)
+2. Pregunta: Sesión 2 (todas tus dudas)
+3. Valida: test-api-completo.js (endpoints)
+4. Device test: iOS + Android real
+
+
+💡 TIPS IMPORTANTES
+
+✅ Usa código tal cual - está probado
+✅ No reescribas nada - copia y pega
+✅ Instala deps exactos - en QUICK_START
+✅ Test en device real - no solo emulator
+✅ Incrementa cambios - no todo de una
+✅ Comunica blockers - inmediatamente
+✅ Daily standups - 15 min
+✅ Monitor KPIs - semanal
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+ESTRUCTURA DE CARPETAS EN TU MÁQUINA
+
+c:\Users\acer\3Warner\
+│
+├─ 01_INICIO_RAPIDO_LECTURA_INMEDIATA/  ⭐ EMPIEZA AQUÍ
+├─ 02_PLANIFICACION_ROADMAP/             📊 PLAN
+├─ 03_CODIGO_FLUTTER_LISTO/              💻 CÓDIGO
+├─ 04_CODIGO_BACKEND_LISTO/              🔌 CÓDIGO
+├─ 05_INTEGRACION_PASO_A_PASO/           🚀 GUÍAS
+├─ 06_BASE_DATOS_SQL/                    🗄️ BD
+├─ 07_DOCUMENTACION_GENERAL/             📚 REFS
+├─ 08_ARCHIVOS_ANTERIORES/               📦 VIEJO
+│
+├─ _INDICE_COMPLETO_ESTRUCTURA.md        (índice)
+├─ ESTRUCTURA_VISUAL_FINAL.txt           (visual)
+├─ RESUMEN_ORGANIZACION_FINAL.md         (resumen)
+│
+├─ JAMConnect_admins/                    (proyecto)
+├─ JAMConnect_Web/                       (proyecto)
+├─ oolale_mobile/                        (proyecto)
+│
+└─ ... (otros archivos)
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+⏰ TIEMPO TOTAL ESTIMADO
+
+Lectura:        2-3 horas
+Integración:    2-3 horas
+Testing:        1-2 horas
+─────────────────────────
+TOTAL SEMANA 1: 5-8 horas
+
+
+🎉 AL FINAL DE LA SEMANA
+
+✅ Portfolio funcionando
+✅ Ratings funcionando
+✅ Sin errores críticos
+✅ Tests pasando
+✅ Ready para Feature 2
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+PRÓXIMA SESIÓN (Sesión 2)
+
+Cuando:      Después de integración (24-48 horas)
+Duración:    4-5 horas
+Objetivo:    Validar todo funciona
+Entregar:    App compilando + features testeadas
+
+════════════════════════════════════════════════════════════════════════════════
+
+👉 EMPIEZA AHORA:  01_INICIO_RAPIDO_LECTURA_INMEDIATA/RESUMEN_VISUAL_FINAL.txt
+
+════════════════════════════════════════════════════════════════════════════════
+
+Documento creado: 22 Enero 2026
+Versión: 1.0
+Estado: ✅ LISTO PARA USAR
+

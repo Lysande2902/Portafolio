@@ -1,208 +1,440 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../config/constants.dart';
+import '../../config/theme_colors.dart';
 
 class HireMusicianScreen extends StatefulWidget {
-  final int musicianId;
-  final String musicianName;
-
-  const HireMusicianScreen({super.key, required this.musicianId, required this.musicianName});
+  const HireMusicianScreen({super.key});
 
   @override
   State<HireMusicianScreen> createState() => _HireMusicianScreenState();
 }
 
-class _HireMusicianScreenState extends State<HireMusicianScreen> {
-  final _amountController = TextEditingController();
-  final _descController = TextEditingController();
-  bool _isLoading = false;
-  double _commission = 0.0;
-  double _total = 0.0;
+class _HireMusicianScreenState extends State<HireMusicianScreen> with SingleTickerProviderStateMixin {
+  final _supabase = Supabase.instance.client;
+  late TabController _tabController;
+  
+  List<Map<String, dynamic>> _receivedOffers = [];
+  List<Map<String, dynamic>> _sentOffers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _amountController.addListener(_updateCalculations);
+    _tabController = TabController(length: 2, vsync: this);
+    _loadHirings();
   }
 
   @override
   void dispose() {
-    _amountController.removeListener(_updateCalculations);
+    _tabController.dispose();
     super.dispose();
   }
 
-  void _updateCalculations() {
-    final amount = double.tryParse(_amountController.text) ?? 0.0;
-    setState(() {
-      _commission = amount * 0.10;
-      _total = amount + _commission;
-    });
-  }
-
-  Future<void> _processHiring() async {
-    final amount = double.tryParse(_amountController.text) ?? 0.0;
-    if (amount < 100) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El monto mínimo es \$100 MXN')));
-      return;
-    }
-    if (_descController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor describe el servicio')));
-      return;
-    }
+  Future<void> _loadHirings() async {
+    final myId = _supabase.auth.currentUser?.id;
+    if (myId == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final api = ApiService();
-      await api.post('/contrataciones/solicitar', {
-        'id_musico': widget.musicianId,
-        'monto_total': amount, // Sending the base amount or total? JS sends 'monto_total: monto' (input value).
-        // JS: const monto = document.getElementById('montoContratacion').value;
-        // JS: body: { ..., monto_total: monto, ... }
-        // So it sends the user input amount, not the calculated total with commission? 
-        // Logic in JS display: "Total a pagar: calcTotal". But API receives 'monto' as 'monto_total'. 
-        // I will send the input amount to match JS.
-        'descripcion_servicio': _descController.text
-      });
+      // Obtener lista de usuarios bloqueados
+      final blockedUsers = await _supabase
+          .from('usuarios_bloqueados')
+          .select('bloqueado_id')
+          .eq('usuario_id', myId)
+          .eq('activo', true);
+      
+      final blockedIds = blockedUsers.map((b) => b['bloqueado_id'] as String).toList();
+
+      // Ofertas recibidas (donde yo soy el músico)
+      final received = await _supabase
+          .from('contrataciones')
+          .select('*, employer:perfiles(nombre_artistico, foto_perfil)')
+          .eq('musician_id', myId)
+          .order('created_at', ascending: false);
+
+      // Ofertas enviadas (donde yo soy el empleador)
+      final sent = await _supabase
+          .from('contrataciones')
+          .select('*, musician:perfiles(nombre_artistico, foto_perfil)')
+          .eq('employer_id', myId)
+          .order('created_at', ascending: false);
 
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AppConstants.cardColor,
-            title: const Text('¡Solicitud Enviada!', style: TextStyle(color: Colors.white)),
-            content: const Text('El pago ha sido procesado y retenido en garantía (Escrow). El músico ha sido notificado.', style: TextStyle(color: Colors.white70)),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx); // Close dialog
-                  Navigator.pop(context); // Close screen
-                },
-                child: const Text('ENTENDIDO', style: TextStyle(color: AppConstants.primaryColor)),
-              )
-            ],
-          ),
-        );
+        // Filtrar ofertas de usuarios bloqueados
+        final filteredReceived = (received as List)
+            .where((offer) => !blockedIds.contains(offer['employer_id']))
+            .toList();
+        
+        final filteredSent = (sent as List)
+            .where((offer) => !blockedIds.contains(offer['musician_id']))
+            .toList();
+
+        setState(() {
+          _receivedOffers = List<Map<String, dynamic>>.from(filteredReceived);
+          _sentOffers = List<Map<String, dynamic>>.from(filteredSent);
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
+      debugPrint('Error loading hirings: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _respondToOffer(int hiringId, String action) async {
+    try {
+      await _supabase
+          .from('contrataciones')
+          .update({'estado': action})
+          .eq('id', hiringId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(action == 'aceptado' ? 'Oferta aceptada' : 'Oferta rechazada'),
+            backgroundColor: action == 'aceptado' ? AppConstants.successColor : AppConstants.errorColor,
+          ),
+        );
+        _loadHirings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al procesar oferta')),
+        );
+      }
+    }
+  }
+
+  void _showCreateOfferDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CreateOfferSheet(onCreated: _loadHirings),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Contratación Segura'),
+        title: Text('CONTRATACIONES', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, letterSpacing: 2)),
         backgroundColor: Colors.transparent,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: AppConstants.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppConstants.primaryColor)
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.security, color: AppConstants.primaryColor, size: 30),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Contratando a ${widget.musicianName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                        const Text('Tu dinero se retiene seguro hasta que recibas el trabajo.', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            ),
-            const SizedBox(height: 25),
-            const Text('Monto a Depositar (MXN)', style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white, fontSize: 20),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.attach_money, color: Colors.white54),
-                hintText: '0.00',
-                filled: true,
-                fillColor: AppConstants.cardColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('Descripción del Servicio', style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _descController,
-              maxLines: 4,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Ej: Grabación de guitarra para 2 canciones...',
-                filled: true,
-                fillColor: AppConstants.cardColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 30),
-            
-            // Receipt
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white10)
-              ),
-              child: Column(
-                children: [
-                  _buildReceiptRow('Subtotal', _amountController.text.isEmpty ? '0.00' : _amountController.text),
-                  const SizedBox(height: 10),
-                  _buildReceiptRow('Comisión de Seguridad (10%)', _commission.toStringAsFixed(2)),
-                  const Divider(color: Colors.white24, height: 30),
-                  _buildReceiptRow('TOTAL A PAGAR', _total.toStringAsFixed(2), isTotal: true),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _processHiring,
-                icon: const Icon(Icons.credit_card),
-                label: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('PAGAR Y ABRIR ESCROW', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green, // Money color
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            )
+        elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppConstants.primaryColor,
+          labelColor: AppConstants.primaryColor,
+          unselectedLabelColor: ThemeColors.secondaryText(context),
+          tabs: [
+            Tab(text: 'Recibidas (${_receivedOffers.length})'),
+            Tab(text: 'Enviadas (${_sentOffers.length})'),
           ],
         ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppConstants.primaryColor))
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildReceivedList(),
+                _buildSentList(),
+              ],
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateOfferDialog,
+        backgroundColor: AppConstants.primaryColor,
+        icon: const Icon(Icons.add, color: Colors.black),
+        label: Text('Nueva Oferta', style: GoogleFonts.outfit(color: Colors.black, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {bool isTotal = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(color: isTotal ? Colors.greenAccent : Colors.white54, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, fontSize: isTotal ? 16 : 14)),
-        Text('\$$value', style: TextStyle(color: isTotal ? Colors.greenAccent : Colors.white, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, fontSize: isTotal ? 18 : 14)),
-      ],
+  Widget _buildReceivedList() {
+    if (_receivedOffers.isEmpty) {
+      return _buildEmptyState('No has recibido ofertas de trabajo');
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _receivedOffers.length,
+      itemBuilder: (context, index) {
+        final offer = _receivedOffers[index];
+        final employer = offer['employer'] as Map<String, dynamic>?;
+        
+        return _OfferCard(
+          offer: offer,
+          otherUser: employer,
+          isReceived: true,
+          onAccept: () => _respondToOffer(offer['id'], 'aceptado'),
+          onReject: () => _respondToOffer(offer['id'], 'rechazado'),
+        );
+      },
+    );
+  }
+
+  Widget _buildSentList() {
+    if (_sentOffers.isEmpty) {
+      return _buildEmptyState('No has enviado ofertas de trabajo');
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _sentOffers.length,
+      itemBuilder: (context, index) {
+        final offer = _sentOffers[index];
+        final musician = offer['musician'] as Map<String, dynamic>?;
+        
+        return _OfferCard(
+          offer: offer,
+          otherUser: musician,
+          isReceived: false,
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.work_outline, size: 80, color: ThemeColors.disabledText(context)),
+          const SizedBox(height: 20),
+          Text(message, style: GoogleFonts.outfit(color: ThemeColors.secondaryText(context), fontSize: 16)),
+        ],
+      ),
+    );
+  }
+}
+
+class _OfferCard extends StatelessWidget {
+  final Map<String, dynamic> offer;
+  final Map<String, dynamic>? otherUser;
+  final bool isReceived;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
+
+  const _OfferCard({
+    required this.offer,
+    required this.otherUser,
+    required this.isReceived,
+    this.onAccept,
+    this.onReject,
+  });
+
+  Color _getStatusColor(String estado) {
+    switch (estado) {
+      case 'aceptado':
+        return AppConstants.successColor;
+      case 'rechazado':
+        return AppConstants.errorColor;
+      case 'completado':
+        return AppConstants.successColor;
+      default:
+        return AppConstants.infoColor;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final estado = offer['estado'] ?? 'pendiente';
+    final isPending = estado == 'pendiente';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _getStatusColor(estado).withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: CircleAvatar(
+              radius: 28,
+              backgroundColor: AppConstants.primaryColor.withOpacity(0.2),
+              child: Text(
+                (otherUser?['nombre_artistico'] ?? 'U')[0].toUpperCase(),
+                style: const TextStyle(color: AppConstants.primaryColor, fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+            ),
+            title: Text(
+              otherUser?['nombre_artistico'] ?? 'Usuario',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  offer['tipo_trabajo']?.toString().toUpperCase() ?? 'TRABAJO',
+                  style: const TextStyle(color: AppConstants.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                if (offer['presupuesto'] != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '\$${offer['presupuesto']}',
+                    style: const TextStyle(color: AppConstants.successColor, fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getStatusColor(estado).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                estado.toUpperCase(),
+                style: TextStyle(color: _getStatusColor(estado), fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          if (offer['descripcion'] != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  offer['descripcion'],
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ),
+            ),
+          if (isReceived && isPending)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onReject,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white54,
+                        side: const BorderSide(color: Colors.white24),
+                      ),
+                      child: const Text('Rechazar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onAccept,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppConstants.primaryColor,
+                        foregroundColor: Colors.black,
+                      ),
+                      child: const Text('Aceptar'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CreateOfferSheet extends StatefulWidget {
+  final VoidCallback onCreated;
+
+  const _CreateOfferSheet({required this.onCreated});
+
+  @override
+  State<_CreateOfferSheet> createState() => _CreateOfferSheetState();
+}
+
+class _CreateOfferSheetState extends State<_CreateOfferSheet> {
+  final _supabase = Supabase.instance.client;
+  final _descController = TextEditingController();
+  final _budgetController = TextEditingController();
+  String _selectedType = 'session';
+  final bool _isCreating = false;
+
+  final List<String> _types = ['session', 'tour', 'event', 'recording'];
+
+  @override
+  void dispose() {
+    _descController.dispose();
+    _budgetController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createOffer() async {
+    // Por ahora, esto requeriría seleccionar un músico
+    // Simplificado para demostración
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Primero selecciona un músico desde Discovery o Conexiones')),
+    );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(25),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nueva Oferta de Trabajo', style: GoogleFonts.outfit(color: ThemeColors.primaryText(context), fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedType,
+              dropdownColor: AppConstants.backgroundColor,
+              decoration: const InputDecoration(labelText: 'Tipo de Trabajo'),
+              items: _types.map((t) => DropdownMenuItem(value: t, child: Text(t.toUpperCase()))).toList(),
+              onChanged: (v) => setState(() => _selectedType = v!),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Descripción'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _budgetController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Presupuesto (\$)', prefixText: '\$ '),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isCreating ? null : _createOffer,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConstants.primaryColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isCreating
+                    ? const CircularProgressIndicator(color: Colors.black)
+                    : const Text('Crear Oferta'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

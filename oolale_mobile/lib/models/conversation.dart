@@ -1,10 +1,10 @@
 class Conversation {
-  final int interlocutorId;
+  final String interlocutorId; // UUID
   final String interlocutorName;
   final String? interlocutorPhoto;
-  final String lastMessage; // 'ultimo_mensaje'
-  final DateTime lastDate; // 'ultima_fecha'
-  final int unreadCount; // 'mensajes_no_leidos'
+  final String lastMessage; 
+  final DateTime lastDate; 
+  int unreadCount; 
 
   Conversation({
     required this.interlocutorId,
@@ -17,12 +17,12 @@ class Conversation {
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
-      interlocutorId: json['interlocutor_id'] ?? 0,
-      interlocutorName: json['interlocutor_nombre'] ?? 'Usuario',
+      interlocutorId: json['interlocutor_id']?.toString() ?? '',
+      interlocutorName: json['interlocutor_nombre'] ?? 'Artista',
       interlocutorPhoto: json['interlocutor_foto'],
-      lastMessage: json['ultimo_mensaje'] ?? '',
-      lastDate: DateTime.tryParse(json['ultima_fecha'] ?? '') ?? DateTime.now(),
-      unreadCount: int.tryParse(json['mensajes_no_leidos'].toString()) ?? 0,
+      lastMessage: json['contenido'] ?? json['ultimo_mensaje'] ?? '',
+      lastDate: DateTime.tryParse(json['ultima_fecha'] ?? json['fecha_envio'] ?? '') ?? DateTime.now(),
+      unreadCount: int.tryParse(json['mensajes_no_leidos']?.toString() ?? '0') ?? 0,
     );
   }
 }

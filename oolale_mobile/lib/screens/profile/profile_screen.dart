@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
-import '../../models/profile.dart';
-import '../../config/constants.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../providers/auth_provider.dart';
+import '../../config/constants.dart';
+import '../../config/theme_colors.dart';
 import 'edit_profile_screen.dart';
+import 'profile_detail_lists.dart';
+import 'public_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,474 +20,623 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final ApiService _api = ApiService();
-  Perfil? _profile;
-
+  final _supabase = Supabase.instance.client;
+  Map<String, dynamic>? _profileData;
   List<dynamic> _instrumentos = [];
-  List<dynamic> _generos = [];
-  List<dynamic> _muestras = [];
-  List<dynamic> _reviews = [];
+  List<String> _genres = [];
+  int _eventosCount = 0;
+  int _seguidoresCount = 0;
+  int _musicCount = 0;
+  int _ratingsCount = 0;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadAllData();
+    _loadArtistProfile();
   }
 
-  Future<void> _loadAllData() async {
+  Future<void> _loadArtistProfile() async {
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     if (user == null) return;
 
+    debugPrint('PROFILE: Cargando perfil para ${user.id}');
+    
     try {
-      // 1. Load Profile
-      try {
-        final profileData = await _api.get('/perfiles/usuario/${user.id}');
-        _profile = Perfil.fromJson(profileData);
-      } catch (e) {
-        print('Profile not found: $e');
+      final profile = await _supabase
+          .from('perfiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      debugPrint('PROFILE: Perfil cargado: $profile');
+
+      if (profile == null) {
+        if (mounted) setState(() { _profileData = null; _isLoading = false; });
+        return;
       }
 
-      if (_profile != null) {
-        // 2. Load Instruments
-        try {
-          final instData = await _api.get('/perfiles/${_profile!.id}/instrumentos');
-          if (instData is List) _instrumentos = instData;
-        } catch (e) { print('Error loading instruments: $e'); }
+      final gear = await _supabase
+          .from('perfil_gear')
+          .select('gear_catalog(nombre)')
+          .eq('perfil_id', user.id);
 
-        // 3. Load Genres
-        try {
-          final genData = await _api.get('/perfiles/${_profile!.id}/generos');
-          if (genData is List) _generos = genData;
-        } catch (e) { print('Error loading genres: $e'); }
+      // Cargar géneros musicales
+      final genresData = await _supabase
+          .from('generos_perfil')
+          .select('genre')
+          .eq('profile_id', user.id);
+
+      // Cargar contadores
+      final eventosData = await _supabase
+          .from('participantes_evento')
+          .select()
+          .eq('user_id', user.id);
+
+      final seguidoresData = await _supabase
+          .from('conexiones')
+          .select()
+          .eq('usuario_id', user.id)
+          .eq('estatus', 'accepted');
+
+      final musicData = await _supabase
+          .from('perfil_gear')
+          .select()
+          .eq('perfil_id', user.id);
+
+      // Cargar ratings count
+      final ratingsCount = profile['total_calificaciones'] ?? 0;
+
+      if (mounted) {
+        setState(() {
+          _profileData = profile;
+          _instrumentos = gear;
+          _genres = (genresData as List).map((g) => g['genre'].toString()).toList();
+          _eventosCount = (eventosData as List).length;
+          _seguidoresCount = (seguidoresData as List).length;
+          _musicCount = (musicData as List).length;
+          _ratingsCount = ratingsCount;
+          _isLoading = false;
+        });
       }
-
-      // 4. Load Samples (User's samples)
-      try {
-        final samplesData = await _api.get('/muestras/mis-muestras');
-        if (samplesData is List) _muestras = samplesData;
-      } catch (e) { print('Error loading samples: $e'); }
-      
-      // 5. Load Reviews
-      if (_profile != null) {
-        try {
-          final reviewsData = await _api.get('/referencias/usuario/${_profile!.id}');
-          if (reviewsData is List) _reviews = reviewsData;
-        } catch (e) { print('Error loading reviews: $e'); }
-      }
-
-      setState(() => _isLoading = false);
-
     } catch (e) {
-      debugPrint('Error loading data: $e');
-      setState(() => _isLoading = false);
+      debugPrint('Error cargando Perfil: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppConstants.cardColor,
+        title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.white)),
+        content: const Text('¿Estás seguro que quieres salir?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Salir', style: TextStyle(color: AppConstants.errorColor)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await Provider.of<AuthProvider>(context, listen: false).logout();
+    }
+  }
+
+  void _shareProfile() {
+    if (_profileData == null) return;
+    final slug = _profileData!['slug_url'] ?? "u/${_profileData!['id']}";
+    Share.share('¡Checa mi perfil en Óolale! ${_profileData!['nombre_artistico']} - https://oolale.app/$slug');
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AuthProvider>(context).user;
-
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppConstants.backgroundColor,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(child: CircularProgressIndicator(color: AppConstants.primaryColor)),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0.7, -0.6),
-            radius: 1.2,
-            colors: [
-              AppConstants.primaryColor.withOpacity(0.08),
-              Colors.black,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 10),
-                // Custom App Bar for Profile
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                      onPressed: () => Navigator.of(context).maybePop(),
-                    ),
-                    Text(
-                      'MI PERFIL',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
-                        fontSize: 16,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
-                      onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
-                    ),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark 
+          ? Theme.of(context).scaffoldBackgroundColor 
+          : Colors.white,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatsRow(),
+                  const SizedBox(height: 30),
+                  _buildActionButtons(),
+                  const SizedBox(height: 30),
+                  // Instrumento Principal
+                  if (_profileData?['instrumento_principal'] != null && 
+                      _profileData!['instrumento_principal'].toString().trim().isNotEmpty) ...[
+                    _buildInstrumentCard(),
+                    const SizedBox(height: 30),
                   ],
-                ),
-                const SizedBox(height: 20),
-                // Premium Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppConstants.cardColor.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: Colors.white10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppConstants.primaryColor.withOpacity(0.05),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      )
-                    ],
+                  _buildSectionTitle('Bio'),
+                  const SizedBox(height: 10),
+                  _buildBioCard(),
+                  const SizedBox(height: 30),
+                  
+                  // Géneros musicales
+                  if (_genres.isNotEmpty) ...[
+                    _buildSectionTitle('Géneros Musicales'),
+                    const SizedBox(height: 10),
+                    _buildGenresCard(),
+                    const SizedBox(height: 30),
+                  ],
+                  
+                  // Años de experiencia y tarifa
+                  if ((_profileData?['years_experience'] != null && _profileData!['years_experience'] > 0) ||
+                      (_profileData?['base_rate'] != null && _profileData!['base_rate'] > 0)) ...[
+                    _buildExperienceAndRateRow(),
+                    const SizedBox(height: 30),
+                  ],
+                  
+                  // Disponibilidad
+                  if (_profileData?['availability'] != null && 
+                      _profileData!['availability'].toString() != '{}' &&
+                      _profileData!['availability'].values.any((e) => e == true)) ...[
+                    _buildSectionTitle('Disponibilidad'),
+                    const SizedBox(height: 10),
+                    _buildAvailabilityCard(),
+                    const SizedBox(height: 30),
+                  ],
+                  
+                  // Redes sociales
+                  if (_profileData?['social_links'] != null && 
+                      _profileData!['social_links'].toString() != '{}' &&
+                      (_profileData!['social_links'] as Map).isNotEmpty) ...[
+                    _buildSectionTitle('Redes Sociales'),
+                    const SizedBox(height: 10),
+                    _buildSocialLinksCard(),
+                    const SizedBox(height: 30),
+                  ],
+                  
+                  _buildPortfolioButton(),
+                  const SizedBox(height: 30),
+                  
+                  // Mi Equipo
+                  if (_instrumentos.isNotEmpty) ...[
+                    _buildSectionTitle('Mi Equipo'),
+                    const SizedBox(height: 10),
+                    _buildGearSection(),
+                    const SizedBox(height: 100),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 300),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isDark
+              ? [
+                  AppConstants.primaryColor.withOpacity(0.2),
+                  Colors.black,
+                ]
+              : [
+                  AppConstants.primaryColor.withOpacity(0.05),
+                  Colors.white,
+                ],
+        ),
+      ),
+      child: SafeArea(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Header Buttons
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+                onPressed: () => context.push('/settings'),
+              ),
+            ),
+            // Profile content
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FadeInDown(
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppConstants.primaryColor, width: 3),
+                      ),
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundColor: Theme.of(context).cardColor,
+                        backgroundImage: _profileData?['foto_perfil'] != null 
+                            ? NetworkImage(_profileData!['foto_perfil']) 
+                            : null,
+                        child: _profileData?['foto_perfil'] == null
+                            ? Icon(Icons.person, size: 60, color: ThemeColors.iconSecondary(context))
+                            : null,
+                      ),
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [AppConstants.primaryColor, AppConstants.accentColor],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppConstants.primaryColor.withOpacity(0.2),
-                                  blurRadius: 20,
-                                )
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 54,
-                              backgroundColor: AppConstants.backgroundColor,
-                              child: Text(
-                                user?.name.substring(0, 1).toUpperCase() ?? 'U',
-                                style: GoogleFonts.outfit(
-                                  color: AppConstants.primaryColor,
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                  const SizedBox(height: 20),
+                  FadeInUp(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _profileData?['nombre_artistico'] ?? 'Artista',
+                          style: GoogleFonts.outfit(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
                           ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: AppConstants.primaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.black),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        _profile?.nombreArtistico ?? user?.name ?? 'Usuario',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
-                          color: Colors.white, 
-                          fontSize: 26, 
-                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
+                        if (_profileData?['verificado'] == true) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.verified, color: AppConstants.primaryColor, size: 24),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Ubicación
+                  if (_profileData?['ubicacion'] != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.location_on_rounded, size: 16, color: AppConstants.primaryColor.withOpacity(0.7)),
-                          const SizedBox(width: 6),
-                          Text(
-                            _profile?.ubicacion ?? 'Ubicación no disponible',
-                            style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14),
+                          Icon(Icons.location_on_outlined, size: 16, color: ThemeColors.secondaryText(context)),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _profileData!['ubicacion'],
+                              style: GoogleFonts.outfit(
+                                color: ThemeColors.secondaryText(context),
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppConstants.accentColor.withOpacity(0.2), Colors.transparent],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppConstants.accentColor.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          _profile?.nivelExperiencia.toUpperCase() ?? 'TALENTO EMERGENTE',
-                          style: GoogleFonts.outfit(
-                            color: AppConstants.accentColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.5
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              
-              const SizedBox(height: 30),
-              
-              // Bio Section with Premium Design
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppConstants.cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    ),
+                  ],
+                  // Calificación
+                  if (_profileData?['rating_promedio'] != null && _profileData!['rating_promedio'] > 0) ...[
+                    const SizedBox(height: 8),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.history_edu_rounded, color: AppConstants.primaryColor, size: 20),
-                        const SizedBox(width: 10),
+                        ...List.generate(5, (index) {
+                          final rating = _profileData!['rating_promedio'] ?? 0.0;
+                          return Icon(
+                            index < rating.floor() ? Icons.star : Icons.star_border,
+                            color: AppConstants.primaryColor,
+                            size: 16,
+                          );
+                        }),
+                        const SizedBox(width: 6),
                         Text(
-                          'BIOGRAFÍA',
+                          '${_profileData!['rating_promedio'].toStringAsFixed(1)} (${_profileData!['total_calificaciones'] ?? 0})',
                           style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
+                            color: ThemeColors.secondaryText(context),
+                            fontSize: 12,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _profile?.bio ?? 'Sin biografía disponible. ¡Cuéntanos tu historia musical!',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white70,
-                        height: 1.6,
-                        fontSize: 15,
-                      ),
-                    ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 25),
-
-              // Instruments
-              _buildSectionHeader('Mis Instrumentos', Icons.music_note),
-              const SizedBox(height: 10),
-              _instrumentos.isEmpty
-                  ? const Text('No has agregado instrumentos', style: TextStyle(color: Colors.white38))
-                  : Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _instrumentos.map((i) => _buildTag(i['nombre'] ?? 'Instrumento')).toList(),
-                    ),
-              
-              const SizedBox(height: 25),
-
-              // Genres
-              _buildSectionHeader('Géneros Favoritos', Icons.album),
-              const SizedBox(height: 10),
-              _generos.isEmpty
-                  ? const Text('No has agregado géneros', style: TextStyle(color: Colors.white38))
-                  : Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _generos.map((g) => _buildTag(g['nombre'] ?? 'Género')).toList(),
-                    ),
-
-              const SizedBox(height: 25),
-
-              // Audio Samples
-              _buildSectionHeader('Mis Muestras', Icons.graphic_eq),
-              const SizedBox(height: 10),
-              _muestras.isEmpty
-                  ? const Text('No has subido muestras aún', style: TextStyle(color: Colors.white38))
-                  : Column(children: _muestras.map((m) => _buildSampleCard(m)).toList()),
-
-              const SizedBox(height: 25),
-              _buildReviewsSection(), // Call it here
-              
-              const SizedBox(height: 40),
-              Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppConstants.primaryColor.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 5),
-                    )
-                  ],
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                     final result = await Navigator.push(
-                       context,
-                       MaterialPageRoute(builder: (context) => EditProfileScreen(profile: _profile)),
-                     );
-                     if (result == true) {
-                       _loadAllData();
-                     }
-                  },
-                  icon: const Icon(Icons.edit_note_rounded, color: Colors.black),
-                  label: Text(
-                    'PERSONALIZAR PERFIL',
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
+                  // Badges
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_profileData?['open_to_work'] == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.work_outline, size: 12, color: Colors.green),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Disponible',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.green,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_profileData?['ranking_tipo'] == 'premium') ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.amber, Colors.orange],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, size: 12, color: Colors.black),
+                              const SizedBox(width: 4),
+                              Text(
+                                'PREMIUM',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.black,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryColor,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                ),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Updated _buildReviewsSection
-  Widget _buildReviewsSection() {
-    if (_reviews.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-           _buildSectionHeader('Referencias & Valoraciones', Icons.star),
-           const SizedBox(height: 10),
-           const Text('Aún no tienes valoraciones.', style: TextStyle(color: Colors.white38)),
+  Widget _buildStatsRow() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: ThemeColors.divider(context).withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.4 : 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
-      );
-    }
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildStat(
+            _eventosCount.toString(), 'Eventos',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileEventsScreen(userId: _profileData!['id']))),
+          ),
+          _buildStatDivider(),
+          _buildStat(
+            _seguidoresCount.toString(), 'Seguidores',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileFollowersScreen(userId: _profileData!['id']))),
+          ),
+          _buildStatDivider(),
+          _buildStat(
+            _musicCount.toString(), 'Equipo',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileGearScreen(userId: _profileData!['id']))),
+          ),
+          _buildStatDivider(),
+          _buildStat(
+            _ratingsCount.toString(), 'Ratings',
+            () {
+              final myId = _supabase.auth.currentUser?.id;
+              if (myId != null) context.push('/ratings/$myId');
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-    // Calculate average
-    double average = 0;
-    if (_reviews.isNotEmpty) {
-      final num sum = _reviews.fold(0, (sum, item) => sum + (item['calificacion'] ?? 0));
-      average = sum / _reviews.length;
-    }
+  Widget _buildStatDivider() {
+    return Container(
+      height: 30,
+      width: 1,
+      color: ThemeColors.divider(context).withOpacity(0.08),
+    );
+  }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-         _buildSectionHeader('Referencias & Valoraciones', Icons.star),
-         const SizedBox(height: 10),
-         Card(
-           color: AppConstants.cardColor,
-           child: Padding(
-             padding: const EdgeInsets.all(20),
-             child: Column(
-               children: [
-                 Text(average.toStringAsFixed(1), style: const TextStyle(color: AppConstants.accentColor, fontSize: 40, fontWeight: FontWeight.bold)), // Usage of accentColor (Amber) for stars/rating
-                 const Text('Valoración General', style: TextStyle(color: Colors.white70)),
-                 Text('Basado en ${_reviews.length} valoraciones', style: const TextStyle(color: Colors.white38, fontSize: 12)),
-               ],
-             ),
-           ),
-         ),
-         const SizedBox(height: 10),
-         ..._reviews.map((r) => Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: AppConstants.cardColor,
-              borderRadius: BorderRadius.circular(10),
-              border: const Border(left: BorderSide(color: AppConstants.accentColor, width: 3))
+  Widget _buildStat(String value, String label, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: ThemeColors.primaryText(context),
+                letterSpacing: -0.5,
+              ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                color: ThemeColors.secondaryText(context).withOpacity(0.7),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              );
+              _loadArtistProfile();
+            },
+            icon: const Icon(Icons.edit_outlined),
+            label: Text('Editar Perfil', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryColor,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ThemeColors.divider(context)),
+          ),
+          child: IconButton(
+            onPressed: () {
+              final myId = Supabase.instance.client.auth.currentUser?.id;
+              if (myId != null) {
+                // Navegar a public_profile_screen para ver cómo te ven otros usuarios
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PublicProfileScreen(userId: myId),
+                  ),
+                );
+              }
+            },
+            icon: Icon(Icons.remove_red_eye_outlined, color: ThemeColors.icon(context)),
+            tooltip: 'Ver cómo me ven otros usuarios',
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ThemeColors.divider(context)),
+          ),
+          child: IconButton(
+            onPressed: _shareProfile,
+            icon: Icon(Icons.share_outlined, color: ThemeColors.icon(context)),
+            tooltip: 'Compartir perfil',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.outfit(
+        color: ThemeColors.primaryText(context),
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _buildInstrumentCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppConstants.primaryColor.withOpacity(0.1),
+            AppConstants.primaryColor.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppConstants.primaryColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppConstants.primaryColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.music_note,
+              color: AppConstants.primaryColor,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(r['nombre_evaluador'] ?? 'Usuario', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    Row(children: List.generate(5, (i) => Icon(
-                       i < (r['calificacion'] ?? 0) ? Icons.star : Icons.star_border,
-                       color: AppConstants.accentColor, size: 16
-                    ))),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                if(r['comentario'] != null) Text(r['comentario'], style: const TextStyle(color: Colors.white70)),
-                const SizedBox(height: 5),
                 Text(
-                   r['fecha_creacion'] != null 
-                     ? r['fecha_creacion'].toString().split('T')[0] 
-                     : '', 
-                   style: const TextStyle(color: Colors.white24, fontSize: 10)
+                  'Instrumento Principal',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: ThemeColors.secondaryText(context),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _profileData!['instrumento_principal'],
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: ThemeColors.primaryText(context),
+                  ),
                 ),
               ],
-             ),
-          ))
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppConstants.primaryColor, size: 20),
-        const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildTag(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppConstants.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-    );
-  }
-
-  Widget _buildSampleCard(dynamic sample) {
-    return SamplePlayerCard(sample: sample);
-  }
-
-  Widget _buildStatItem(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppConstants.cardColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          Expanded(
-            child: Text(
-              value.toUpperCase(), 
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
             ),
           ),
         ],
@@ -493,202 +644,427 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoSection(String title, String content) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBioCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ThemeColors.divider(context)),
+      ),
+      child: Text(
+        _profileData?['bio'] ?? 'Sin biografía. Cuéntale al mundo quién eres.',
+        style: GoogleFonts.outfit(
+          color: ThemeColors.secondaryText(context),
+          fontSize: 15,
+          height: 1.6,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenresCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ThemeColors.divider(context)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _genres.map((genre) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppConstants.primaryColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppConstants.primaryColor),
+            ),
+            child: Text(
+              genre,
+              style: GoogleFonts.outfit(
+                color: AppConstants.primaryColor,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildExperienceAndRateRow() {
+    final yearsExp = _profileData?['years_experience'] ?? 0;
+    final baseRate = _profileData?['base_rate'] ?? 0.0;
+    final currency = _profileData?['currency'] ?? 'MXN';
+    
+    return Row(
       children: [
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        Text(content, style: const TextStyle(color: Colors.white70, height: 1.5)),
+        if (yearsExp > 0)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ThemeColors.divider(context)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.work_outline, color: AppConstants.primaryColor, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Experiencia',
+                        style: GoogleFonts.outfit(
+                          color: ThemeColors.secondaryText(context),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$yearsExp ${yearsExp == 1 ? 'año' : 'años'}',
+                    style: GoogleFonts.outfit(
+                      color: ThemeColors.primaryText(context),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (yearsExp > 0 && baseRate > 0) const SizedBox(width: 12),
+        if (baseRate > 0)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ThemeColors.divider(context)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.attach_money, color: AppConstants.primaryColor, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Tarifa Base',
+                        style: GoogleFonts.outfit(
+                          color: ThemeColors.secondaryText(context),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '\$$baseRate $currency',
+                    style: GoogleFonts.outfit(
+                      color: ThemeColors.primaryText(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
-}
 
-class SamplePlayerCard extends StatefulWidget {
-  final dynamic sample;
-  const SamplePlayerCard({super.key, required this.sample});
-
-  @override
-  State<SamplePlayerCard> createState() => _SamplePlayerCardState();
-}
-
-class _SamplePlayerCardState extends State<SamplePlayerCard> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
-  
-  bool _isPlaying = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-  bool _isVideo = false;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkFileType();
-    
-    // Audio listeners
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if(mounted && !_isVideo) setState(() => _isPlaying = state == PlayerState.playing);
-    });
-    _audioPlayer.onDurationChanged.listen((d) {
-      if(mounted && !_isVideo) setState(() => _duration = d);
-    });
-    _audioPlayer.onPositionChanged.listen((p) {
-      if(mounted && !_isVideo) setState(() => _position = p);
-    });
-    _audioPlayer.onPlayerComplete.listen((event) {
-      if(mounted && !_isVideo) {
-        setState(() {
-         _isPlaying = false;
-         _position = Duration.zero;
-      });
-      }
-    });
-  }
-
-  void _checkFileType() {
-    final url = widget.sample['archivo_url'] ?? widget.sample['url'];
-    if (url != null) {
-      final String lowerUrl = url.toString().toLowerCase();
-      if (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi')) {
-         _isVideo = true;
-         _initializeVideo(url);
-      }
-    }
-  }
-
-  Future<void> _initializeVideo(String url) async {
-      String finalUrl = url;
-      if (!url.startsWith('http')) {
-         final baseUrl = AppConstants.baseUrl.replaceAll('/api', '');
-         finalUrl = '$baseUrl$url'; 
-      }
-      
-      _videoController = VideoPlayerController.networkUrl(Uri.parse(finalUrl));
-      await _videoController!.initialize();
-      
-      _chewieController = ChewieController(
-        videoPlayerController: _videoController!,
-        autoPlay: false,
-        looping: false,
-        aspectRatio: _videoController!.value.aspectRatio,
-        allowFullScreen: true,
-        allowMuting: true,
-      );
-      
-      if(mounted) setState(() => _isInitialized = true);
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    _videoController?.dispose();
-    _chewieController?.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggleAudioPlay() async {
-    if (_isPlaying) {
-      await _audioPlayer.pause();
-    } else {
-      String? url = widget.sample['archivo_url'] ?? widget.sample['url'];
-      if (url != null) {
-         if (!url.startsWith('http')) {
-             final baseUrl = AppConstants.baseUrl.replaceAll('/api', '');
-             url = '$baseUrl$url'; 
-         }
-         try {
-            await _audioPlayer.play(UrlSource(url));
-         } catch(e) {
-            if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al reproducir audio')));
-         }
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isVideo) {
-      if (!_isInitialized) {
-         return Container(
-           height: 200, 
-           margin: const EdgeInsets.only(bottom: 10),
-           decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(12)),
-           child: const Center(child: CircularProgressIndicator())
-         );
-      }
+  Widget _buildAvailabilityCard() {
+    final availability = _profileData?['availability'] as Map<String, dynamic>?;
+    if (availability == null || availability.isEmpty) {
       return Container(
-        height: 220,
-        margin: const EdgeInsets.only(bottom: 15),
-        child: ClipRRect(
-           borderRadius: BorderRadius.circular(12),
-           child: Chewie(controller: _chewieController!),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ThemeColors.divider(context)),
+        ),
+        child: Center(
+          child: Text(
+            'Sin disponibilidad configurada',
+            style: GoogleFonts.outfit(color: ThemeColors.secondaryText(context)),
+          ),
         ),
       );
     }
 
+    final days = {
+      'lunes': 'Lun',
+      'martes': 'Mar',
+      'miercoles': 'Mié',
+      'jueves': 'Jue',
+      'viernes': 'Vie',
+      'sabado': 'Sáb',
+      'domingo': 'Dom',
+    };
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppConstants.cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ThemeColors.divider(context)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: days.entries.map((entry) {
+          final isAvailable = availability[entry.key] == true;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isAvailable 
+                  ? AppConstants.primaryColor.withOpacity(0.2) 
+                  : Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isAvailable 
+                    ? AppConstants.primaryColor 
+                    : ThemeColors.divider(context),
+              ),
+            ),
+            child: Text(
+              entry.value,
+              style: GoogleFonts.outfit(
+                color: isAvailable 
+                    ? AppConstants.primaryColor 
+                    : ThemeColors.secondaryText(context),
+                fontSize: 12,
+                fontWeight: isAvailable ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSocialLinksCard() {
+    final socialLinks = _profileData?['social_links'] as Map<String, dynamic>?;
+    if (socialLinks == null || socialLinks.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ThemeColors.divider(context)),
+        ),
+        child: Center(
+          child: Text(
+            'Sin redes sociales configuradas',
+            style: GoogleFonts.outfit(color: ThemeColors.secondaryText(context)),
+          ),
+        ),
+      );
+    }
+
+    final platforms = {
+      'instagram': {'icon': Icons.camera_alt, 'label': 'Instagram'},
+      'youtube': {'icon': Icons.play_circle_outline, 'label': 'YouTube'},
+      'spotify': {'icon': Icons.music_note, 'label': 'Spotify'},
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ThemeColors.divider(context)),
       ),
       child: Column(
-        children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _toggleAudioPlay,
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: AppConstants.primaryColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, 
-                    color: AppConstants.primaryColor
-                  ),
+        children: platforms.entries.where((entry) {
+          return socialLinks.containsKey(entry.key) && 
+                 socialLinks[entry.key] != null && 
+                 socialLinks[entry.key].toString().isNotEmpty;
+        }).map((entry) {
+          final url = socialLinks[entry.key].toString();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: InkWell(
+              onTap: () {
+                // Aquí podrías abrir el URL con url_launcher
+                debugPrint('Opening: $url');
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: ThemeColors.divider(context)),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      widget.sample['titulo'] ?? 'Audio Clip',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    Icon(
+                      entry.value['icon'] as IconData,
+                      color: AppConstants.primaryColor,
+                      size: 20,
                     ),
-                    Text(
-                      widget.sample['duracion'] ?? '0:00',
-                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.value['label'] as String,
+                            style: GoogleFonts.outfit(
+                              color: ThemeColors.primaryText(context),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            url,
+                            style: GoogleFonts.outfit(
+                              color: ThemeColors.secondaryText(context),
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.open_in_new,
+                      color: ThemeColors.iconSecondary(context),
+                      size: 16,
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.download, color: Colors.white24, size: 20),
-                onPressed: () {},
-              )
-            ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildGearSection() {
+    if (_instrumentos.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ThemeColors.divider(context)),
+        ),
+        child: Center(
+          child: Text(
+            'No has agregado equipo aún',
+            style: GoogleFonts.outfit(color: ThemeColors.secondaryText(context)),
           ),
-          if (_isPlaying || _position > Duration.zero)
-            Slider(
-              activeColor: AppConstants.primaryColor,
-              inactiveColor: Colors.white10,
-              min: 0,
-              max: _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 100,
-              value: _position.inSeconds.toDouble().clamp(0, _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 100),
-              onChanged: (v) async {
-                await _audioPlayer.seek(Duration(seconds: v.toInt()));
-              },
-            )
-        ],
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: _instrumentos.map((i) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppConstants.primaryColor.withOpacity(0.3)),
+          ),
+          child: Text(
+            i['gear_catalog']['nombre'],
+            style: GoogleFonts.outfit(
+              color: ThemeColors.primaryText(context),
+              fontSize: 13,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPortfolioButton() {
+    final myId = _supabase.auth.currentUser?.id;
+    if (myId == null) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => context.push('/portfolio/$myId'),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppConstants.primaryColor.withOpacity(0.2),
+              AppConstants.primaryColor.withOpacity(0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppConstants.primaryColor.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.photo_library_outlined,
+                color: AppConstants.primaryColor,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mi Galería',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: ThemeColors.primaryText(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Sube imágenes, videos y audios',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      color: ThemeColors.secondaryText(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppConstants.primaryColor,
+              size: 18,
+            ),
+          ],
+        ),
       ),
     );
   }

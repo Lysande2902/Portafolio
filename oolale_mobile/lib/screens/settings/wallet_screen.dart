@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../config/constants.dart';
+import '../../config/theme_colors.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -10,10 +13,11 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  final ApiService _api = ApiService();
+  final _supabase = Supabase.instance.client;
+  
+  double _balance = 0.0;
+  List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
-  List<dynamic> _transactions = [];
-  final double _balance = 0.0;
 
   @override
   void initState() {
@@ -22,151 +26,330 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _loadWalletData() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    setState(() => _isLoading = true);
+
     try {
-      // Mock fetching wallet data if API is not fully ready
-      // In real app: GET /pagos
-      final response = await _api.get('/pagos');
-      if (response != null && response is Map && response.containsKey('pagos')) {
-         setState(() {
-           _transactions = response['pagos'];
-           _isLoading = false;
-         });
-      } else {
-        // Fallback for demo parity request
+      // Cargar transacciones del usuario
+      final data = await _supabase
+          .from('tickets_pagos')
+          .select()
+          .eq('comprador_id', userId)
+          .order('created_at', ascending: false);
+
+      if (mounted) {
         setState(() {
-          _transactions = [
-            {'fecha_creacion': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(), 'descripcion': 'Contratación Guitarrista', 'monto': 550.00, 'tipo_transaccion': 'pago_servicio', 'estado': 'completado'},
-            {'fecha_creacion': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(), 'descripcion': 'Membresía PRO', 'monto': 9.99, 'tipo_transaccion': 'membresia', 'estado': 'completado'},
-          ];
+          _transactions = List<Map<String, dynamic>>.from(data);
+          // Calcular balance (suma de completados - reembolsados)
+          _balance = _transactions.fold(0.0, (sum, t) {
+            if (t['estatus'] == 'completado') {
+              return sum + (t['monto_total'] as num).toDouble();
+            } else if (t['estatus'] == 'reembolsado') {
+              return sum - (t['monto_total'] as num).toDouble();
+            }
+            return sum;
+          });
           _isLoading = false;
         });
       }
     } catch (e) {
-      if(mounted) setState(() => _isLoading = false);
+      debugPrint('Error loading wallet: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Color _getStatusColor(String status) {
-    if (status == 'completado') return Colors.green;
-    if (status == 'pendiente') return Colors.orange;
-    return Colors.red;
+  void _showAddFundsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text('Agregar Fondos', style: TextStyle(color: ThemeColors.primaryText(context))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Integración de pagos próximamente', style: TextStyle(color: ThemeColors.secondaryText(context))),
+            const SizedBox(height: 16),
+            Text(
+              'MercadoPago • PayPal • Stripe',
+              style: GoogleFonts.outfit(color: AppConstants.primaryColor, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido', style: TextStyle(color: AppConstants.primaryColor)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Billetera e Historial'),
-        backgroundColor: AppConstants.backgroundColor,
+        title: Text('BILLETERA', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, letterSpacing: 2)),
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : Column(
-          children: [
-            // Balance Card
-            Container(
-              margin: const EdgeInsets.all(20),
-              padding: const EdgeInsets.all(25),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppConstants.primaryColor, AppConstants.primaryColor.withOpacity(0.6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight
-                ),
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 10, offset: const Offset(0, 5))]
-              ),
-              child: Column(
-                children: [
-                  const Text('Saldo Disponible', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                  const SizedBox(height: 5),
-                  const Text('\$0.00', style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold)), // Mock balance
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildActionButton(Icons.add, 'Depositar'),
-                      _buildActionButton(Icons.arrow_upward, 'Retirar'),
-                    ],
-                  )
-                ],
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppConstants.primaryColor))
+          : Column(
+              children: [
+                _buildBalanceCard(),
+                _buildQuickActions(),
+                Expanded(child: _buildTransactionsList()),
+              ],
             ),
-            
-            // Transactions Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
-                children: const [
-                  Icon(Icons.history, color: AppConstants.accentColor, size: 20),
-                  SizedBox(width: 10),
-                  Text('Movimientos Recientes', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-
-            // List
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                itemCount: _transactions.length,
-                itemBuilder: (context, index) {
-                  final t = _transactions[index];
-                  final isNegative = t['tipo_transaccion'] != 'ingreso'; // Simple logic
-                  return Card(
-                    color: AppConstants.cardColor,
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppConstants.backgroundColor,
-                        child: Icon(
-                          isNegative ? Icons.arrow_outward : Icons.arrow_downward,
-                          color: isNegative ? Colors.orange : Colors.green,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(t['descripcion'] ?? 'Transacción', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                      subtitle: Text(
-                        t['fecha_creacion'].toString().split('T')[0], 
-                        style: const TextStyle(color: Colors.white38, fontSize: 12)
-                      ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${isNegative ? '-' : '+'}\$${t['monto']}', 
-                            style: TextStyle(color: isNegative ? Colors.white : Colors.greenAccent, fontWeight: FontWeight.bold)
-                          ),
-                          Text(
-                            t['estado']?.toString().toUpperCase() ?? '',
-                            style: TextStyle(color: _getStatusColor(t['estado']), fontSize: 10)
-                          )
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            )
-          ],
-        ),
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: Colors.white),
+  Widget _buildBalanceCard() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppConstants.primaryColor, AppConstants.aquamarineColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(height: 5),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12))
-      ],
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: AppConstants.primaryColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Balance Disponible',
+                style: GoogleFonts.outfit(
+                  color: Colors.black54,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Icon(Icons.account_balance_wallet_rounded, color: Colors.black54, size: 24),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '\$${_balance.toStringAsFixed(2)} MXN',
+            style: GoogleFonts.outfit(
+              color: Colors.black,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${_transactions.length} transacciones',
+            style: GoogleFonts.outfit(
+              color: Colors.black38,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildActionButton(
+              'Agregar Fondos',
+              Icons.add_rounded,
+              AppConstants.primaryColor,
+              _showAddFundsDialog,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildActionButton(
+              'Retirar',
+              Icons.arrow_upward_rounded,
+              AppConstants.accentColor,
+              () {},
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionsList() {
+    if (_transactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_rounded, size: 80, color: ThemeColors.disabledText(context)),
+            const SizedBox(height: 20),
+            Text(
+              'Sin transacciones aún',
+              style: GoogleFonts.outfit(color: ThemeColors.secondaryText(context), fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: _transactions.length,
+      itemBuilder: (context, index) {
+        final transaction = _transactions[index];
+        return _TransactionTile(transaction: transaction);
+      },
+    );
+  }
+}
+
+class _TransactionTile extends StatelessWidget {
+  final Map<String, dynamic> transaction;
+
+  const _TransactionTile({required this.transaction});
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'completado':
+        return AppConstants.successColor;
+      case 'pendiente':
+        return AppConstants.warningColor;
+      case 'reembolsado':
+        return AppConstants.infoColor;
+      case 'fallido':
+        return AppConstants.errorColor;
+      default:
+        return AppConstants.textMuted;
+    }
+  }
+
+  IconData _getIcon(String status) {
+    switch (status) {
+      case 'completado':
+        return Icons.check_circle_rounded;
+      case 'pendiente':
+        return Icons.access_time_rounded;
+      case 'reembolsado':
+        return Icons.undo_rounded;
+      case 'fallido':
+        return Icons.error_rounded;
+      default:
+        return Icons.receipt_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = transaction['estatus'] ?? 'borrador';
+    final amount = (transaction['monto_total'] as num).toDouble();
+    final date = DateTime.parse(transaction['created_at']);
+    final color = _getStatusColor(status);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(_getIcon(status), color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  status.toUpperCase(),
+                  style: GoogleFonts.outfit(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  transaction['pasarela'] ?? 'Pago',
+                  style: GoogleFonts.outfit(
+                    color: ThemeColors.primaryText(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('dd MMM yyyy, HH:mm').format(date),
+                  style: TextStyle(color: ThemeColors.hintText(context), fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '\$${amount.toStringAsFixed(2)}',
+            style: GoogleFonts.outfit(
+              color: status == 'reembolsado' ? AppConstants.infoColor : Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

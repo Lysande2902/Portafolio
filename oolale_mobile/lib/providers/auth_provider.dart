@@ -1,48 +1,73 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../models/user.dart';
-import '../config/constants.dart';
+import '../services/storage_service_auth.dart';
+import '../utils/error_handler.dart';
 
 enum AuthStatus { checking, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
-  final ApiService _apiService = ApiService();
+  final sb.SupabaseClient _supabase = sb.Supabase.instance.client;
   
   AuthStatus _status = AuthStatus.checking;
   User? _user;
   String? _errorMessage;
+  bool _rememberMe = false;
 
   AuthStatus get status => _status;
   User? get user => _user;
   String? get errorMessage => _errorMessage;
+  bool get rememberMe => _rememberMe;
 
   AuthProvider() {
-    checkAuthStatus();
+    _init();
+  }
+
+  void _init() async {
+    // Cargar preferencia de "Recordarme"
+    _rememberMe = await StorageServiceAuth.getRememberMe();
+    
+    // Verificar sesión actual al inicio
+    final session = _supabase.auth.currentSession;
+    _updateUserFromSession(session);
+    
+    // Escuchar cambios
+    _supabase.auth.onAuthStateChange.listen((data) {
+      final sb.AuthChangeEvent event = data.event;
+      final sb.Session? session = data.session;
+      
+      debugPrint('AUTH_PROVIDER: Evento recibido: $event');
+      _updateUserFromSession(session);
+    });
+  }
+
+  void setRememberMe(bool value) async {
+    _rememberMe = value;
+    await StorageServiceAuth.setRememberMe(value);
+    notifyListeners();
+  }
+
+  void _updateUserFromSession(sb.Session? session) {
+    if (session != null) {
+      _user = User(
+        id: session.user.id,
+        email: session.user.email ?? '',
+        name: session.user.userMetadata?['full_name'] ?? 'Usuario',
+        isAdmin: session.user.userMetadata?['is_admin'] ?? false,
+      );
+      _status = AuthStatus.authenticated;
+      debugPrint('AUTH_PROVIDER: Estado -> AUTHENTICATED (${_user!.email})');
+    } else {
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      debugPrint('AUTH_PROVIDER: Estado -> UNAUTHENTICATED');
+    }
+    notifyListeners();
   }
 
   Future<void> checkAuthStatus() async {
-    final token = await _apiService.getToken();
-    if (token == null) {
-      _logoutLocal();
-      return;
-    }
-
-    try {
-      // Validar token intentando obtener perfil básico o ping de auth
-      // Como no tenemos endpoint de "me" específico documentado rápido, 
-      // asumiremos que si hay token intentamos loguear con lo que tenemos persistido
-      // O idealmente, hacemos un GET /api/usuarios/perfil si existiera.
-      // Por ahora, asumiremos 'authenticated' si hay token, pero lo ideal es validar.
-      
-      // Simulación de "Check Token":
-      // Si el backend tuviera endpoint de validar token: await _apiService.get('/auth/check');
-      
-      _status = AuthStatus.authenticated;
-      notifyListeners();
-      
-    } catch (e) {
-      _logoutLocal();
-    }
+    final session = _supabase.auth.currentSession;
+    _updateUserFromSession(session);
   }
 
   Future<bool> login(String email, String password) async {
@@ -50,68 +75,100 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    print('AUTH: Iniciando login para $email en ${AppConstants.baseUrl}');
     try {
-      final dynamic response = await _apiService.post('/auth/login', {
-        'email': email,
-        'password': password
-      });
-      print('AUTH: Respuesta del servidor recibida: $response');
-
-      if (response is Map && (response['token'] != null || response['success'] == true)) {
-        final token = response['token'];
-        if (token != null) await _apiService.setToken(token);
+      debugPrint('AUTH_PROVIDER: Intentando login con $email');
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      
+      if (response.user != null) {
+        debugPrint('AUTH_PROVIDER: Login exitoso para ${response.user!.id}');
         
-        final userData = response['user'] ?? response['usuario'];
-        print('AUTH: Datos de usuario: $userData');
-        
-        if (userData != null) {
-          final normalizedData = {
-            'id_usuario': userData['id'] ?? userData['id_usuario'] ?? 0,
-            'correo_electronico': userData['email'] ?? userData['correo_electronico'] ?? email,
-            'nombre_completo': userData['name'] ?? userData['nombre_completo'] ?? 'Demo User',
-          };
-          _user = User.fromJson(normalizedData);
+        // Guardar email si "Recordarme" está activado
+        if (_rememberMe) {
+          await StorageServiceAuth.saveEmail(email);
+          debugPrint('AUTH_PROVIDER: Email guardado para recordar');
         } else {
-          _user = User(id: 0, email: email, name: 'Demo User');
+          await StorageServiceAuth.clearEmail();
         }
-        _status = AuthStatus.authenticated;
-        print('AUTH: Login exitoso, redirigiendo...');
-        notifyListeners();
+        
+        // Forzamos actualización inmediata para que la UI reaccione rápido
+        _updateUserFromSession(response.session);
         return true;
-      } else {
-        print('AUTH: Login fallido - Sin token');
-        _errorMessage = 'Respuesta inválida del servidor';
-        _status = AuthStatus.unauthenticated;
-        notifyListeners();
-        return false;
       }
+      return false;
+    } on sb.AuthException catch (e) {
+      ErrorHandler.logError('AuthProvider.login', e);
+      _errorMessage = e.message;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     } catch (e) {
-      print('AUTH ERROR: $e');
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      ErrorHandler.logError('AuthProvider.login', e);
+      _errorMessage = 'Ocurrió un error inesperado: $e';
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
     }
   }
 
-  Future<bool> register(String email, String password, String name) async {
+  Future<String?> getSavedEmail() async {
+    return await StorageServiceAuth.getSavedEmail();
+  }
+
+  Future<bool> register(String email, String password, String name, String rol) async {
     _status = AuthStatus.checking;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _apiService.post('/auth/register', {
-        'email': email,
-        'password': password,
-        'fullName': name
-      });
-
-      // Si el registro es exitoso, intentamos loguear automáticamente
-      return await login(email, password);
-
+      debugPrint('AUTH_PROVIDER: Registrando $email');
+      debugPrint('AUTH_PROVIDER: Nombre: $name, Rol: $rol');
+      
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': name,
+          'rol_principal': rol,
+        },
+      );
+      
+      debugPrint('AUTH_PROVIDER: Response user: ${response.user?.id}');
+      debugPrint('AUTH_PROVIDER: Response session: ${response.session != null}');
+      
+      if (response.user != null) {
+        debugPrint('AUTH_PROVIDER: Registro exitoso para ${response.user!.id}');
+        
+        // Verificar si hay sesión
+        if (response.session != null) {
+          debugPrint('AUTH_PROVIDER: Sesión creada automáticamente');
+          _updateUserFromSession(response.session);
+          return true;
+        } else {
+          debugPrint('AUTH_PROVIDER: Usuario creado pero sin sesión (verificación de email requerida)');
+          _errorMessage = 'Revisa tu correo para verificar tu cuenta';
+          _status = AuthStatus.unauthenticated;
+          notifyListeners();
+          return false;
+        }
+      }
+      
+      debugPrint('AUTH_PROVIDER: Registro falló - no se creó usuario');
+      _errorMessage = 'No se pudo crear la cuenta';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
+    } on sb.AuthException catch (e) {
+      ErrorHandler.logError('AuthProvider.register', e);
+      _errorMessage = e.message;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      ErrorHandler.logError('AuthProvider.register', e);
+      _errorMessage = 'Ocurrió un error inesperado: $e';
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
@@ -119,11 +176,13 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _apiService.removeToken();
-    _logoutLocal();
-  }
-
-  void _logoutLocal() {
+    await _supabase.auth.signOut();
+    
+    // Limpiar email guardado si no está "Recordarme" activado
+    if (!_rememberMe) {
+      await StorageServiceAuth.clearEmail();
+    }
+    
     _status = AuthStatus.unauthenticated;
     _user = null;
     notifyListeners();
