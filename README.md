@@ -4,23 +4,24 @@
 
 Este repositorio sirve como mi portafolio personal y profesional de desarrollo de software. Aquí alojo los proyectos completos en los que he trabajado, organizados por carpetas. El objetivo es centralizar mi código y recursos, demostrando mis habilidades para analizar problemas, diseñar arquitecturas e implementar soluciones tecnológicas.
 
-**Proyecto Actual Destacado: Oolale (JAMConnect)**  
-Actualmente, el portafolio engloba el proyecto completo de **Oolale**, una plataforma social y colaborativa para músicos y artistas. El código se divide en dos módulos principales:
+### Módulos y Proyectos Principales
 
-1. **`oolale_mobile/`**: Aplicación móvil multiplataforma para interactuar con la red social.
-2. **`JAMConnect_Web/`**: Backend, API y Panel Administrativo Web para gestionar la plataforma completa.
+1.  **Red Social Musical: Oolale (JAMConnect)**
+    *   **`oolale_mobile/`**: Aplicación móvil multiplataforma para interactuar con la red social.
+    *   **`JAMConnect_Web/`**: Backend, API y Panel Administrativo Web para gestionar la plataforma completa.
 
-*(A medida que desarrolle nuevas soluciones, se agregarán a este mismo repositorio).*
+2.  **Experiencia de Terror: Witness.me**
+    *   **`humano/`**: El núcleo de la aplicación de terror desarrollada en Flutter, integrando el motor de juegos Flame y servicios de Firebase.
+    *   **`eidolon_web/`**: Sitio web institucional narrativo con estética glitch y elementos interactivos avanzados.
 
 ---
 
 ## Tecnologías usadas
 
-A lo largo de los proyectos contenidos en este portafolio, se aplican diferentes lenguajes y herramientas para construir arquitecturas completas (desde la base de datos hasta interfaces móviles y web):
+A lo largo de los proyectos contenidos en este portafolio, se aplican diferentes lenguajes y herramientas para construir arquitecturas completas:
 
-*   **Desarrollo Móvil (Frontend):** Flutter, Dart, Provider, GoRouter
-*   **Desarrollo Web y Servidor (Backend):** Node.js, Express.js, EJS, HTML, CSS
-*   **Bases de Datos y Herramientas Cloud:** Supabase (PostgreSQL), Firebase (Notificaciones Push)
-*   **Seguridad y Sesiones:** JWT, bcrypt, express-session, helmet
-*   **Control de Versiones y Diseño:** Git, GitHub, Arquitectura MVC y MVVM
+*   **Desarrollo Móvil y Juegos:** Flutter, Dart, Flame (Game Engine), Provider, GoRouter.
+*   **Desarrollo Web y Servidor:** Node.js, Express.js, EJS, HTML5, CSS3, JavaScript (Vanilla y Moderno).
+*   **Servicios Cloud y Bases de Datos:** Supabase (PostgreSQL), Firebase (Auth, Firestore, Push Notifications).
+*   **Integraciones y herramientas:** Stripe (Pagos), JWT, bcrypt, express-session, Git, Arquitectura MVC y MVVM.
 

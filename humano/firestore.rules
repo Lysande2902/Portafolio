@@ -1,0 +1,214 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========================================
+    // FUNCIONES HELPER
+    // ========================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidString(value) {
+      return value is string && value.size() > 0;
+    }
+    
+    function isValidNumber(value) {
+      return value is number && value >= 0;
+    }
+    
+    // ========================================
+    // 1. COLECCIÓN DE USUARIOS
+    // ========================================
+    match /users/{userId} {
+      // Solo el propio usuario puede leer sus datos
+      allow read: if isOwner(userId);
+      
+      // Permitir creación solo si incluye userId y email
+      allow create: if isOwner(userId) && validateUserCreation();
+      
+      // Permitir actualizaciones parciales (merge) sin requerir todos los campos
+      allow update: if isOwner(userId) && validateUserUpdate();
+      
+      // Permitir eliminación (útil para testing)
+      allow delete: if isOwner(userId);
+      
+      // Validación para CREACIÓN de usuario (requiere campos completos)
+      function validateUserCreation() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['userId', 'email']) &&
+               data.userId == userId &&
+               isValidString(data.email) &&
+               // Validar inventario si existe
+               (!data.keys().hasAny(['inventory']) || validateInventory(data.inventory));
+      }
+      
+      // Validación para ACTUALIZACIÓN (permite actualizaciones parciales)
+      function validateUserUpdate() {
+        let data = request.resource.data;
+        
+        // Si se está actualizando userId, debe coincidir
+        let userIdValid = !data.keys().hasAny(['userId']) || data.userId == userId;
+        
+        // Si se está actualizando email, debe ser válido
+        let emailValid = !data.keys().hasAny(['email']) || isValidString(data.email);
+        
+        // Si se está actualizando inventory, debe ser válido
+        let inventoryValid = !data.keys().hasAny(['inventory']) || validateInventory(data.inventory);
+        
+        // Si se está actualizando arcProgress, validar estructura básica
+        let arcProgressValid = !data.keys().hasAny(['arcProgress']) || data.arcProgress is map;
+        
+        // Si se está actualizando stats, validar estructura básica
+        let statsValid = !data.keys().hasAny(['stats']) || data.stats is map;
+        
+        // Si se está actualizando settings, validar estructura básica
+        let settingsValid = !data.keys().hasAny(['settings']) || data.settings is map;
+        
+        return userIdValid && emailValid && inventoryValid && arcProgressValid && statsValid && settingsValid;
+      }
+      
+      function validateInventory(inventory) {
+        return inventory.coins >= 0 &&
+               inventory.coins <= 999999 && // Límite razonable
+               inventory.ownedItems is list &&
+               inventory.hasBattlePass is bool;
+      }
+      
+      // Subcolecciones (progreso, fragmentos, etc.)
+      match /{subcollection}/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ========================================
+    // 2. TRANSACCIONES PENDIENTES (STRIPE)
+    // ========================================
+    match /pending_transactions/{transactionId} {
+      // Solo puede crear si el userId coincide con el auth
+      allow create: if isAuthenticated() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       validateTransaction(request.resource.data);
+      
+      // Solo puede leer sus propias transacciones
+      allow read: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid;
+      
+      // Solo puede actualizar sus propias transacciones
+      // Y no puede cambiar el userId
+      allow update: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId == resource.data.userId &&
+                       validateTransaction(request.resource.data);
+      
+      // Las transacciones no deben eliminarse (solo moverse a 'transactions')
+      allow delete: if false;
+      
+      function validateTransaction(data) {
+        return data.keys().hasAll(['userId', 'amount', 'currency', 'status']) &&
+               isValidString(data.userId) &&
+               isValidNumber(data.amount) &&
+               data.amount > 0 &&
+               data.amount <= 100000 && // Límite de $1000
+               data.currency in ['usd', 'mxn', 'eur'] &&
+               data.status in ['pending', 'processing', 'completed', 'failed'];
+      }
+    }
+    
+    // ========================================
+    // 3. TRANSACCIONES COMPLETADAS (STRIPE)
+    // ========================================
+    match /transactions/{transactionId} {
+      // Solo puede crear si el userId coincide
+      allow create: if isAuthenticated() &&
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Solo puede leer sus propias transacciones
+      allow read: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid;
+      
+      // Las transacciones completadas son inmutables
+      allow update, delete: if false;
+    }
+    
+    // ========================================
+    // 4. MULTIJUGADOR - PARTIDAS
+    // ========================================
+    match /matches/{matchId} {
+      // Cualquier usuario autenticado puede leer partidas
+      allow read: if isAuthenticated();
+      
+      // Solo puede crear si se incluye como jugador
+      allow create: if isAuthenticated() &&
+                       request.resource.data.hostId == request.auth.uid &&
+                       validateMatchData(request.resource.data);
+      
+      // Solo los participantes pueden actualizar
+      allow update: if isAuthenticated() &&
+                       isMatchParticipant() &&
+                       validateMatchUpdate();
+      
+      // Solo el host puede eliminar (para cleanup)
+      allow delete: if isAuthenticated() &&
+                       resource.data.hostId == request.auth.uid;
+      
+      function isMatchParticipant() {
+        return request.auth.uid == resource.data.hostId ||
+               (resource.data.keys().hasAny(['guestId']) && 
+                request.auth.uid == resource.data.guestId);
+      }
+      
+      function validateMatchData(data) {
+        return data.keys().hasAll(['hostId', 'status', 'arcId']) &&
+               data.status in ['waiting', 'active', 'finished'] &&
+               isValidString(data.arcId);
+      }
+      
+      function validateMatchUpdate() {
+        let data = request.resource.data;
+        // No se puede cambiar el host
+        return data.hostId == resource.data.hostId &&
+               // No se puede cambiar el guest una vez asignado
+               (!resource.data.keys().hasAny(['guestId']) || 
+                data.guestId == resource.data.guestId) &&
+               // Estado válido
+               data.status in ['waiting', 'active', 'finished'];
+      }
+    }
+    
+    // ========================================
+    // 5. LEADERBOARD (TABLA DE CLASIFICACIÓN)
+    // ========================================
+    match /leaderboard/{userId} {
+      // Todos los usuarios autenticados pueden leer el leaderboard
+      allow read: if isAuthenticated();
+      
+      // Solo el usuario puede escribir su propia entrada
+      allow write: if isOwner(userId) && validateLeaderboardEntry();
+      
+      function validateLeaderboardEntry() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['userId', 'username', 'totalScore']) &&
+               data.userId == userId &&
+               isValidString(data.username) &&
+               data.username.size() <= 30 &&
+               isValidNumber(data.totalScore) &&
+               isValidNumber(data.totalFragments) &&
+               isValidNumber(data.arcsCompleted) &&
+               isValidNumber(data.totalCoins) &&
+               isValidNumber(data.achievementsUnlocked);
+      }
+    }
+    
+    // ========================================
+    // 6. REGLA POR DEFECTO (DENEGAR TODO)
+    // ========================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

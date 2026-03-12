@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "375864472598",
+    "project_id": "condicion-humano",
+    "storage_bucket": "condicion-humano.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375864472598:android:27f4df986f230bfd44b137",
+        "android_client_info": {
+          "package_name": "com.example.humano"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "375864472598-516f5ttllog05i2te0u239dnbhi3jem6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.humano",
+            "certificate_hash": "b4e5cab35777bd9fb74387236057aa00c7e0fb2c"
+          }
+        },
+        {
+          "client_id": "375864472598-9gj8ak04ptnk13tldckgb1chr3ohjfmj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVf6fSM0l41lZZr8I_0fcr8hYzQyaqc90"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "375864472598-9gj8ak04ptnk13tldckgb1chr3ohjfmj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "375864472598-rj5fmmn3t1dnn0ahd420sm9dts5ne6du.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.humano"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

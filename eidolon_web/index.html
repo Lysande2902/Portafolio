@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instituto Eidolon | Innovación Neural</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- FAKE 404 SERVER ERROR (FACADE) -->
+    <div id="fake-404">
+        <h1>No Encontrado</h1>
+        <p>La URL solicitada no se encontró en este servidor.</p>
+        <p>Adicionalmente, se encontró un error 404 No Encontrado al intentar usar un ErrorDocument para manejar la
+            petición.</p>
+        <hr>
+        <address>Servidor Apache/2.4.41 (Ubuntu) en auth.eidolon-institute.com Puerto 443</address>
+
+        <div id="creepy-console"></div>
+    </div>
+
+    <!-- REAL EIDOLON SITE (HIDDEN AT START) -->
+    <div id="eidolon-site" style="opacity: 0; pointer-events: none; transition: opacity 2s ease;">
+        <div id="glitch-overlay"></div>
+
+        <nav class="navbar">
+            <div class="logo">EIDOLON<span style="font-weight:300; margin-left:5px;">INSTITUTE</span></div>
+            <ul class="nav-links">
+                <li><a href="#about">Nosotros</a></li>
+                <li><a href="#trials">Ensayos Clínicos</a></li>
+                <li><a href="#technology">Tecnología</a></li>
+                <li><a href="#contact" class="btn-primary">Contacto</a></li>
+            </ul>
+        </nav>
+
+        <header class="hero">
+            <div class="hero-content">
+                <h1 class="reveal-text">Redifiniendo la <span class="highlight">Conciencia</span> Humana</h1>
+                <p>El Instituto Eidolon es pionero en interfaces cerebro-computadora para la rehabilitación cognitiva
+                    severa. Suavizamos los bordes del trauma.</p>
+                <a href="#trials" class="btn-primary large">Descubre el Proyecto MindHack™</a>
+            </div>
+            <div class="hero-image">
+                <!-- Represented by CSS styling to look sleek and medical -->
+                <div class="abstract-neural-network">
+                    <div class="neural-pulse"></div>
+                </div>
+            </div>
+        </header>
+
+        <section id="about" class="section bg-white">
+            <div class="container" style="max-width: 800px; margin: 0 auto; text-align: center;">
+                <h2 class="section-title" id="title-about">Sobre Nosotros</h2>
+                <p id="desc-about-1" style="font-size: 1.1rem; margin-bottom: 20px;">En el Instituto Eidolon, creemos
+                    que el sufrimiento no tiene por qué ser definitivo. Nacidos de la necesidad urgente de tratar
+                    traumas intratables, hemos congregado a los neurocientíficos y bio-ingenieros más brillantes del
+                    mundo.</p>
+                <p id="desc-about-2" style="font-size: 1.1rem;">Nuestra misión es simple: editar el dolor. Rediseñar el
+                    ego. Devolver la funcionalidad a mentes rotas.</p>
+            </div>
+        </section>
+
+        <section id="trials" class="section bg-light">
+            <div class="container">
+                <h2 class="section-title">Ensayos Clínicos Activos</h2>
+                <div class="cards-grid">
+                    <div class="trial-card">
+                        <div class="card-status active">Fase 3: Ejecutándose</div>
+                        <h3>Proyecto MindHack™</h3>
+                        <p>Reconstrucción de memoria para pacientes en coma profundo inducido por trauma severo.</p>
+                        <p class="fine-print">Sujetos activos: 1 (ID: Sujeto 0-Alex)</p>
+                    </div>
+                    <div class="trial-card">
+                        <div class="card-status warning">Pendiente Revisión Ética</div>
+                        <h3>Protocolo "Espejos Rotos"</h3>
+                        <p>Supresión selectiva de recuerdos vinculados a la percepción negativa de la autoimagen.</p>
+                    </div>
+                    <div class="trial-card" id="creepy-card">
+                        <div class="card-status danger">Clasificado</div>
+                        <h3 data-glitch="Purgatorio Neural">Proyecto Re-Wake</h3>
+                        <p>Reestructuración <span class="glitch-word" data-text="forcible">avanzada</span> de sinapsis
+                            mediante estrés virtual <span class="glitch-word" data-text="infinito">controlado</span>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="section">
+            <div class="container">
+                <h2 class="section-title">Contacto de Soporte</h2>
+                <div class="contact-box">
+                    <p>Para consultas sobre ensayos clínicos, soporte técnico del hardware neural, o peticiones de
+                        extracción de datos familiares (Sujeto 0), comuníquese exclusivamente a nuestro canal oficial:
+                    </p>
+                    <div class="email-display">
+                        witnessme.eidolon@gmail.com
+                    </div>
+                    <p class="disclaimer">El Instituto Eidolon no se hace responsable de daños psicológicos persistentes
+                        ni
+                        fragmentación del ego durante el uso del protocolo MindHack.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="container">
+                <p>&copy; 2026 Eidolon Institute. Todos los derechos reservados.</p>
+                <p style="font-size: 0.7rem; color: #aaa; margin-top: 10px;">La mente es maleable. Nosotros tenemos el
+                    molde.</p>
+            </div>
+        </footer>
+    </div> <!-- END EIDOLON SITE -->
+
+    <div id="fatal-crash-overlay"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

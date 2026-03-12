@@ -1,0 +1,116 @@
+{
+  "bodyTypeName": "female",
+  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#?body=Body_color_light&head=Wartotaur_light&shadow=Shadow_shadow&sleeves=Original_Longsleeves_Overlay_black&legs=Leggings_bluegray&sex=female&vest=none_Corset&clothes=TShirt_bluegray&shoes=Sara_Shoes_slate",
+  "spritesheets": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/spritesheets/",
+  "version": 1,
+  "datetime": "19/11/2025, 10:11:57 a.m.",
+  "credits": [
+    {
+      "fileName": "shadow/adult/shadow.png",
+      "licenses": "CC0",
+      "authors": "drjamgo@hotmail.com",
+      "urls": "https://opengameart.org/content/shadow-for-lpc-sprite",
+      "notes": ""
+    },
+    {
+      "fileName": "body/bodies/female/light.png",
+      "licenses": "OGA-BY 3.0,CC-BY-SA 3.0,GPL 3.0",
+      "authors": "Benjamin K. Smith (BenCreating),bluecarrot16,TheraHedwig,Evert,MuffinElZangano,Durrani,Pierre Vigier (pvigier),ElizaWy,Matthew Krohn (makrohn),Johannes Sjölund (wulax),Stephen Challener (Redshrike)",
+      "urls": "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles,https://opengameart.org/content/lpc-medieval-fantasy-character-sprites,https://opengameart.org/content/lpc-ladies,https://opengameart.org/content/lpc-7-womens-shirts,https://opengameart.org/content/lpc-jump-expanded,https://opengameart.org/content/lpc-be-seated,https://opengameart.org/content/lpc-revised-character-basics,https://gitlab.com/vagabondgame/lpc-characters,https://opengameart.org/content/lpc-male-jumping-animation-by-durrani,https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle",
+      "notes": "see details at https://opengameart.org/content/lpc-character-bases"
+    },
+    {
+      "fileName": "head/heads/wartotaur/adult/light.png",
+      "licenses": "OGA-BY 3.0,CC-BY 3.0",
+      "authors": "bluecarrot16,Evert,Stephen Challener (Redshrike)",
+      "urls": "https://opengameart.org/content/tower-defense-prototyping-assets-4-monsters-some-tiles-a-background-image,https://opengameart.org/content/wartotaur-4-directions,https://opengameart.org/content/lpc-folk",
+      "notes": "original **wart-o-taur** concept and sprite by Redshrike, extended to 4 directions and head extracted by Evert, cleanup and hurt/cast animations by bluecarrot16"
+    },
+    {
+      "fileName": "torso/clothes/longsleeve/longsleeves/female/black.png",
+      "licenses": "OGA-BY 3.0,CC-BY-SA 3.0,GPL 3.0",
+      "authors": "bluecarrot16,ElizaWy,JaidynReiman,Stephen Challener (Redshrike)",
+      "urls": "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles,https://opengameart.org/content/lpc-7-womens-shirts,http://opengameart.org/content/lpc-clothing-updates,https://opengameart.org/content/lpc-revised-character-basics,https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing,https://opengameart.org/content/lpc-expanded-sit-run-jump-more,https://opengameart.org/content/lpc-expanded-simple-shirts",
+      "notes": "original by ElizaWy, edited to v3 bases by bluecarrot16; cleanup and climb/jump/run/sit/emote/revised combat adapted from LPC Revised by JaidynReiman"
+    },
+    {
+      "fileName": "torso/clothes/shortsleeve/tshirt/female/bluegray.png",
+      "licenses": "OGA-BY 3.0",
+      "authors": "ElizaWy,JaidynReiman,Stephen Challener (Redshrike),Johannes Sjölund (wulax)",
+      "urls": "https://opengameart.org/content/lpc-revised-character-basics,https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing,https://opengameart.org/content/lpc-expanded-sit-run-jump-more,https://opengameart.org/content/lpc-expanded-simple-shirts",
+      "notes": "original by ElizaWy; spellcast/thrust/shoot/hurt/male adapted from original by JaidynReiman"
+    },
+    {
+      "fileName": "legs/leggings/thin/bluegray.png",
+      "licenses": "OGA-BY 3.0",
+      "authors": "bluecarrot16,ElizaWy,JaidynReiman,Mandi Paugh,William.Thompsonj,Johannes Sjölund (wulax),Stephen Challener (Redshrike)",
+      "urls": "http://opengameart.org/content/sara-wizard,https://opengameart.org/content/lpc-sara,https://opengameart.org/content/lpc-expanded-pants",
+      "notes": "Original bases by Redshrike, thrust/shoot bases by Wulax, adapted from sara's leggings to v3 bases by bluecarrot16, jump/run/sit by JaidynReiman based on ElizaWy's and modified to match"
+    },
+    {
+      "fileName": "feet/shoes/sara/thin/slate.png",
+      "licenses": "OGA-BY 3.0,CC-BY 3.0+,GPL 2.0,GPL 3.0",
+      "authors": "JaidynReiman,Bluecarrot16,Mandi Paugh,Stephen Challener (Redshrike),William.Thompsonj",
+      "urls": "http://opengameart.org/content/sara-wizard,https://opengameart.org/content/lpc-sara,https://opengameart.org/content/lpc-expanded-socks-shoes",
+      "notes": "LPC Sara by Redshrike, contributed by William Thompsonj, Shoes Separated by Bluecarrot16, Jump/Sit/Emote/Run/Revised Combat by JaidynReiman"
+    }
+  ],
+  "layers": [
+    {
+      "fileName": "shadow/adult/shadow.png",
+      "zPos": 0,
+      "parentName": "shadow",
+      "name": "Shadow",
+      "variant": "shadow",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering"
+    },
+    {
+      "fileName": "body/bodies/female/light.png",
+      "zPos": 10,
+      "parentName": "body",
+      "name": "Body_color",
+      "variant": "light",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering,idle,jump,run,sit,emote,climb,combat,1h_slash,1h_backslash,1h_halfslash"
+    },
+    {
+      "fileName": "feet/shoes/sara/thin/slate.png",
+      "zPos": 15,
+      "parentName": "shoes",
+      "name": "Sara_Shoes",
+      "variant": "slate",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering,idle,jump,run,sit,emote,climb,combat,1h_slash,1h_backslash,1h_halfslash"
+    },
+    {
+      "fileName": "legs/leggings/thin/bluegray.png",
+      "zPos": 20,
+      "parentName": "legs",
+      "name": "Leggings",
+      "variant": "bluegray",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering,idle,jump,run,sit,emote,climb,combat,1h_slash,1h_backslash,1h_halfslash"
+    },
+    {
+      "fileName": "torso/clothes/longsleeve/longsleeves/female/black.png",
+      "zPos": 35,
+      "parentName": "sleeves",
+      "name": "Original_Longsleeves_Overlay",
+      "variant": "black",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering,idle,jump,run,sit,emote,climb,combat,1h_slash,1h_backslash,1h_halfslash"
+    },
+    {
+      "fileName": "torso/clothes/shortsleeve/tshirt/female/bluegray.png",
+      "zPos": 35,
+      "parentName": "clothes",
+      "name": "TShirt",
+      "variant": "bluegray",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering,idle,jump,run,sit,emote,climb,combat,1h_slash,1h_backslash,1h_halfslash"
+    },
+    {
+      "fileName": "head/heads/wartotaur/adult/light.png",
+      "zPos": 100,
+      "parentName": "head",
+      "name": "Wartotaur",
+      "variant": "light",
+      "supportedAnimations": "spellcast,thrust,walk,slash,shoot,hurt,watering,idle,jump,run,sit,emote,climb,combat,1h_slash,1h_backslash,1h_halfslash"
+    }
+  ]
+}

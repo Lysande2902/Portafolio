@@ -1,0 +1,528 @@
+:root {
+    --primary: #0A58CA;
+    --secondary: #E3F2FD;
+    --accent: #FF3E61;
+    --text-dark: #212529;
+    --text-light: #F8F9FA;
+    --bg-white: #FFFFFF;
+    --bg-light: #F4F6F9;
+    --danger: #DC3545;
+    --success: #198754;
+    --warning: #FFC107;
+}
+
+body.dark-mode {
+    --primary: #FF3E61;
+    --secondary: #1A1A1A;
+    --accent: #00FFA3;
+    --text-dark: #E6E6E6;
+    --text-light: #000000;
+    --bg-white: #050505;
+    --bg-light: #0A0F14;
+    --danger: #FF0000;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+body {
+    background-color: var(--bg-white);
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+/* NAVBAR */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 50px;
+    background: var(--bg-white);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 1px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 30px;
+    align-items: center;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: var(--primary);
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #fff !important;
+    padding: 10px 25px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+.btn-primary.large {
+    padding: 15px 40px;
+    font-size: 1rem;
+    display: inline-block;
+    margin-top: 30px;
+}
+
+/* HERO SECTION */
+.hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 80px 10%;
+    min-height: 80vh;
+}
+
+.hero-content {
+    flex: 1;
+    max-width: 600px;
+}
+
+.hero-content h1 {
+    font-size: 3.5rem;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    color: var(--text-dark);
+}
+
+.highlight {
+    color: var(--primary);
+}
+
+.hero-content p {
+    font-size: 1.2rem;
+    color: var(--text-dark);
+    opacity: 0.8;
+}
+
+.hero-image {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    position: relative;
+}
+
+.abstract-neural-network {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+    position: relative;
+    animation: breathe 5s infinite ease-in-out alternate;
+}
+
+.neural-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 0 40px 10px rgba(10, 88, 202, 0.4);
+}
+
+body.dark-mode .neural-pulse {
+    background: var(--accent);
+    box-shadow: 0 0 40px 10px rgba(0, 255, 163, 0.6);
+}
+
+@keyframes breathe {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+}
+
+/* SECTIONS */
+.section {
+    padding: 80px 10%;
+}
+
+.bg-light {
+    background: var(--bg-light);
+}
+
+.section-title {
+    font-size: 2rem;
+    text-align: center;
+    margin-bottom: 50px;
+    color: var(--primary);
+}
+
+/* CARDS GRID */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+.trial-card {
+    background: var(--bg-white);
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    border-top: 5px solid var(--primary);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.trial-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-status {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.active {
+    background: var(--success);
+    color: white;
+}
+
+.warning {
+    background: var(--warning);
+    color: #000;
+}
+
+.danger {
+    background: var(--danger);
+    color: white;
+}
+
+.trial-card h3 {
+    margin-bottom: 15px;
+    color: var(--text-dark);
+}
+
+.fine-print {
+    margin-top: 20px;
+    font-size: 0.8rem;
+    color: var(--text-dark);
+    opacity: 0.6;
+}
+
+/* CONTACT */
+.contact-box {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+    background: var(--bg-white);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+.email-display {
+    font-family: monospace;
+    font-size: 1.5rem;
+    color: var(--primary);
+    margin: 30px 0;
+    padding: 20px;
+    background: var(--secondary);
+    border-radius: 5px;
+    user-select: all;
+    transition: all 0.3s;
+}
+
+body.dark-mode .email-display {
+    color: var(--accent);
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" style="fill:red"><circle cx="10" cy="10" r="10"/></svg>') 10 10, crosshair;
+}
+
+.disclaimer {
+    font-size: 0.8rem;
+    color: var(--text-dark);
+    opacity: 0.5;
+}
+
+/* FOOTER */
+.footer {
+    text-align: center;
+    padding: 40px;
+    background: var(--bg-white);
+    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.02);
+}
+
+/* --- CREEPY HOVERS (The Truth) --- */
+.glitch-word {
+    position: relative;
+    display: inline-block;
+    cursor: default;
+}
+
+.glitch-word:hover::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: red;
+    background: var(--bg-white);
+    font-family: monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* --- FATAL CRASH LAYER --- */
+#fatal-crash-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0000aa;
+    /* Classic BSOD vibes */
+    color: #fff;
+    z-index: 100000;
+    font-family: "Courier New", Courier, monospace;
+    padding: 40px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+}
+
+.fatal-text {
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+    color: inherit;
+}
+
+.kernel-panic {
+    background: #aa0000 !important;
+    animation: jitter-severe 0.05s infinite;
+}
+
+.garbage-text {
+    word-break: break-all;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1;
+}
+
+#creepy-card h3:hover::after {
+    content: attr(data-glitch);
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    background: #000;
+    color: red;
+    padding: 5px;
+    font-family: monospace;
+    z-index: 10;
+}
+
+@keyframes jitter {
+    0% {
+        transform: translate(1px, 1px);
+    }
+
+    50% {
+        transform: translate(-1px, -1px);
+    }
+
+    100% {
+        transform: translate(1px, -1px);
+    }
+}
+
+/* Glitch overlay on click */
+#glitch-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    background: transparent;
+    z-index: 9999;
+}
+
+body.dark-mode #glitch-overlay {
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)"/></svg>');
+    opacity: 0.05;
+    animation: static 0.5s infinite linear;
+}
+
+@keyframes static {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 10% 10%;
+    }
+}
+
+/* --- FAKE 404 SERVER ERROR STYLES --- */
+#fake-404 {
+    background-color: #fff;
+    color: #000;
+    font-family: "Times New Roman", Times, serif;
+    padding: 20px;
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+}
+
+#fake-404 h1 {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#fake-404 p {
+    font-size: 1.1em;
+    margin-bottom: 1em;
+}
+
+#fake-404 address {
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+#creepy-console {
+    margin-top: 50px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #444;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+.glitching-404 {
+    animation: jitter-severe 0.1s infinite;
+    filter: invert(1);
+    background: #000 !important;
+}
+
+@keyframes jitter-severe {
+    0% {
+        transform: translate(5px, 5px) skew(2deg);
+        filter: hue-rotate(90deg);
+    }
+
+    50% {
+        transform: translate(-5px, -5px) skew(-2deg);
+        filter: hue-rotate(-90deg);
+    }
+
+    100% {
+        transform: translate(5px, -5px) skew(2deg);
+        filter: invert(1);
+    }
+}
+
+/* --- NIGHTMARE CORRUPTION STYLES --- */
+body.nightmare-mode {
+    background-color: #030000 !important;
+    color: #aa0000;
+    font-family: "Courier New", Courier, monospace;
+}
+
+body.nightmare-mode .navbar {
+    background-color: #080000;
+    border-bottom: 3px solid #600;
+    transform: rotate(0.6deg) translateY(-2px);
+    box-shadow: 0 10px 30px rgba(255, 0, 0, 0.2);
+}
+
+body.nightmare-mode .nav-links a {
+    color: #880000;
+    letter-spacing: -1px;
+}
+
+body.nightmare-mode .section {
+    background: transparent !important;
+}
+
+body.nightmare-mode .trial-card {
+    background: #050000;
+    border: 1px solid #400;
+    border-left: 10px solid #800;
+    box-shadow: inset 0 0 50px rgba(100, 0, 0, 0.5);
+}
+
+/* Break the grid */
+body.nightmare-mode .trial-card:nth-child(odd) {
+    transform: skew(-3deg) translateY(10px);
+}
+
+body.nightmare-mode .trial-card:nth-child(even) {
+    transform: skew(2deg) translateY(-5px);
+}
+
+body.nightmare-mode .hero-content h1 {
+    font-size: 4rem;
+    line-height: 0.9;
+    letter-spacing: -3px;
+    color: #ff0000;
+}
+
+/* Sickening static overlay */
+body.nightmare-mode::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) 1px, transparent 1px, transparent 2px);
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.glitch-text {
+    color: #ff0000 !important;
+    font-family: "Courier New", Courier, monospace;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -2px;
+    text-shadow: 3px 0px 0px rgba(255, 0, 0, 0.9), -3px 0px 0px rgba(0, 0, 255, 0.9);
+}
